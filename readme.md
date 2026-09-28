@@ -62,7 +62,7 @@ Secuencia interactiva de intervenciones cuánticas sobre un arquetipo inicial. C
 ## Estructura del proyecto
 
 ```
-laboratorio_cuantico/
+laboratorio-cuantico-junguiano/
 ├── core/                        ← Núcleo cuántico
 │   ├── __init__.py
 │   ├── experiments.py           ← Arquetipo, ParConDecoherencia
@@ -103,8 +103,8 @@ laboratorio_cuantico/
 ## Instalación
 
 ```bash
-git clone https://github.com/martinezmarcos93/laboratorio_cuantico.git
-cd laboratorio_cuantico
+git clone https://github.com/martinezmarcos93/laboratorio-cuantico-junguiano.git
+cd laboratorio-cuantico-junguiano
 python -m venv venv
 venv\Scripts\activate          # Windows
 # source venv/bin/activate     # Linux/Mac

@@ -43,8 +43,8 @@ El Laboratorio Cuántico-Junguiano es un entorno de simulación computacional qu
 ## Instalación {#instalación}
 
 ```bash
-git clone https://github.com/martinezmarcos93/laboratorio_cuantico.git
-cd laboratorio_cuantico
+git clone https://github.com/martinezmarcos93/laboratorio-cuantico-junguiano.git
+cd laboratorio-cuantico-junguiano
 
 python -m venv venv
 venv\Scripts\activate          # Windows PowerShell
