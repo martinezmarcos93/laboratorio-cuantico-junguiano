@@ -220,20 +220,43 @@ class ParConDecoherencia:
             prob_igual += np.trace(P_joint @ self.rho).real
         return float(prob_igual)
 
-    def entropia_entrelazamiento(self) -> float:
-        """
-        Entropía de Von Neumann de la matriz de densidad reducida del qubit 1.
+    def entropia_reducida(self) -> float:
+        """Entropía de Von Neumann de la reducción de un qubit.
 
-        MEJORA NUEVA: mide el grado de entrelazamiento cuántico restante
-        tras aplicar el canal de desfase. Para |Φ+⟩ puro = 1 bit;
-        para estado completamente mixto = 1 bit también (la represión
-        transforma el entrelazamiento pero no lo destruye trivialmente).
-
-        Junguianamente: cuantifica la "profundidad sincrónica" entre
-        el contenido interno y el evento externo.
+        Esta magnitud es la entropía de entrelazamiento sólo para estados
+        globales puros. Después de ruido/decoherencia el estado global puede
+        ser mixto, por lo que NO debe interpretarse por sí sola como medida
+        de entrelazamiento.
         """
-        # Trazar sobre el qubit 2 para obtener rho_1
-        rho_1    = np.trace(self.rho.reshape(2, 2, 2, 2), axis1=1, axis2=3)
-        eigvals  = np.linalg.eigvalsh(rho_1)
-        eigvals  = eigvals[eigvals > 1e-12]          # evitar log(0)
+        rho_1 = np.trace(self.rho.reshape(2, 2, 2, 2), axis1=1, axis2=3)
+        eigvals = np.linalg.eigvalsh(rho_1)
+        eigvals = eigvals[eigvals > 1e-12]
         return float(-np.sum(eigvals * np.log2(eigvals)))
+
+    def negatividad(self) -> float:
+        """Negatividad del estado bipartito.
+
+        Es cero para estados separables y positiva para estados con
+        entrelazamiento detectable mediante la transposición parcial.
+        Para el estado Bell |Φ+⟩ vale 0.5. Es preferible a usar la entropía
+        reducida como proxy después de aplicar ruido local.
+        """
+        rho_reshaped = self.rho.reshape(2, 2, 2, 2)
+        rho_pt = np.transpose(rho_reshaped, (2, 1, 0, 3)).reshape(4, 4)
+        eigvals = np.linalg.eigvalsh(rho_pt)
+        return float(np.sum(np.abs(eigvals[eigvals < 0])))
+
+    def concurrencia(self) -> float:
+        """Concurrencia de Wootters para un estado bipartito de dos qubits."""
+        Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
+        YY = np.kron(Y, Y)
+        rho_tilde = YY @ self.rho.conj() @ YY
+        eigvals = np.linalg.eigvals(self.rho @ rho_tilde)
+        lambdas = np.sort(np.sqrt(np.maximum(0.0, np.real(eigvals))))[::-1]
+        value = lambdas[0] - np.sum(lambdas[1:])
+        return float(np.clip(value, 0.0, 1.0))
+
+    # Compatibilidad histórica: el nombre antiguo era ambiguo.
+    def entropia_entrelazamiento(self) -> float:
+        """Alias de compatibilidad. Preferir entropia_reducida()."""
+        return self.entropia_reducida()
