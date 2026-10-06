@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.linalg import expm
 
 from .experiments import ParConDecoherencia
 
@@ -51,10 +52,18 @@ class ParConLindblad(ParConDecoherencia):
             pasos:  subdivisiones del intervalo (más pasos = integración más precisa)
         """
         for nombre, val in (("gamma1", gamma1), ("gamma2", gamma2)):
-            if not isinstance(val, (int, float)) or np.isnan(val):
-                raise TypeError(f"{nombre} debe ser un número real; recibido: {val!r}")
+            if not isinstance(val, (int, float, np.integer, np.floating)) or not np.isfinite(val):
+                raise TypeError(f"{nombre} debe ser un número real finito; recibido: {val!r}")
             if not 0.0 <= val <= 1.0:
                 raise ValueError(f"{nombre} debe estar en [0, 1]; recibido {val}.")
+        if not isinstance(dt, (int, float, np.integer, np.floating)) or not np.isfinite(dt):
+            raise TypeError(f"dt debe ser un número real finito; recibido: {dt!r}")
+        if dt < 0:
+            raise ValueError(f"dt debe ser >= 0; recibido {dt}.")
+        if not isinstance(pasos, (int, np.integer)) or pasos < 1:
+            raise ValueError(f"pasos debe ser un entero >= 1; recibido {pasos}.")
+        if dt == 0 or (gamma1 == 0 and gamma2 == 0):
+            return
 
         I2        = np.eye(2)
         sig_minus = np.array([[0, 1], [0, 0]])   # |0><1|: |1> → |0>
@@ -64,18 +73,32 @@ class ParConLindblad(ParConDecoherencia):
         L2 = np.sqrt(gamma2 / 2.0) * np.kron(sig_z, I2)
         operadores = [L for L in (L1, L2) if np.any(L != 0)]
 
-        dt_paso = dt / pasos
-        for _ in range(pasos):
-            drho = sum(
-                L @ self.rho @ L.conj().T
-                - 0.5 * (L.conj().T @ L @ self.rho + self.rho @ L.conj().T @ L)
-                for L in operadores
+        # Evolución exacta para un generador constante:
+        # vec(ρ(t)) = exp(L_super * t) vec(ρ(0)).
+        # Esto evita los artefactos de positividad que puede introducir Euler
+        # para pasos grandes y hace que "pasos" sea sólo un parámetro de
+        # compatibilidad/precisión histórica, no parte de la física simulada.
+        dim = self.rho.shape[0]
+        superoperador = np.zeros((dim * dim, dim * dim), dtype=complex)
+        identidad = np.eye(dim, dtype=complex)
+        for L in operadores:
+            A = L.conj().T @ L
+            superoperador += (
+                np.kron(L.conj(), L)
+                - 0.5 * np.kron(identidad, A)
+                - 0.5 * np.kron(A.T, identidad)
             )
-            self.rho = self.rho + drho * dt_paso
-            # Re-normalizar para corregir errores acumulados del método de Euler
-            tr = float(np.trace(self.rho).real)
-            if tr > 1e-12:
-                self.rho /= tr
+
+        rho_vec = self.rho.reshape(-1, order="F")
+        rho_vec = expm(superoperador * float(dt)) @ rho_vec
+        self.rho = rho_vec.reshape((dim, dim), order="F")
+
+        # Corrección únicamente numérica de hermiticidad/traza.
+        self.rho = (self.rho + self.rho.conj().T) / 2.0
+        tr = float(np.trace(self.rho).real)
+        if tr <= 1e-12:
+            raise RuntimeError("La evolución de Lindblad produjo una traza numéricamente nula.")
+        self.rho /= tr
 
     def metricas(self) -> dict:
         """Estado resumido del par: entropía de entrelazamiento + correlación."""
