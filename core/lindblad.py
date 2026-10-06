@@ -80,8 +80,10 @@ class ParConLindblad(ParConDecoherencia):
     def metricas(self) -> dict:
         """Estado resumido del par: entropía de entrelazamiento + correlación."""
         return {
-            "entropia_entrelazamiento": round(self.entropia_entrelazamiento(), 4),
-            "correlacion_teorica":      round(self.correlacion_teorica(), 4),
+            "entropia_reducida": round(self.entropia_reducida(), 4),
+            "negatividad":        round(self.negatividad(), 4),
+            "concurrencia":       round(self.concurrencia(), 4),
+            "correlacion_teorica": round(self.correlacion_teorica(), 4),
         }
 
 
