@@ -172,8 +172,8 @@ class ParConDecoherencia:
         BUG FIX 6: guard contra NaN y valores fuera de rango explicitados.
 
         Operadores de Kraus:
-            K0 = sqrt(1 - gamma) * I4
-            K1 = sqrt(gamma)     * Z⊗I2
+            K0 = sqrt(1 - gamma/2) * I4
+            K1 = sqrt(gamma/2)     * Z⊗I2
         """
         # BUG FIX 6: protección reforzada
         if not isinstance(gamma, (int, float)) or np.isnan(gamma):
@@ -186,8 +186,11 @@ class ParConDecoherencia:
         Z  = np.array([[1, 0], [0, -1]])
         I2 = np.eye(2)
         I4 = np.eye(4)
-        K0 = np.sqrt(1 - gamma) * I4
-        K1 = np.sqrt(gamma)     * np.kron(Z, I2)
+        # Convención: gamma=0 → sin ruido; gamma=1 → pérdida total
+        # de coherencia de fase. Los operadores conservan traza:
+        # K0 = sqrt(1-gamma/2) I, K1 = sqrt(gamma/2) Z.
+        K0 = np.sqrt(1 - gamma / 2) * I4
+        K1 = np.sqrt(gamma / 2) * np.kron(Z, I2)
         self.rho = K0 @ self.rho @ K0.conj().T + K1 @ self.rho @ K1.conj().T
 
     def medir_base_X(self) -> tuple[int, int]:
