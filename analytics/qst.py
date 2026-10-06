@@ -110,22 +110,42 @@ def tomografia_bloch(
 
 def reconstruir_arquetipo(resultado_bloch: dict) -> Arquetipo:
     """
-    Crea un Arquetipo desde el resultado de tomografia_bloch().
+    Proyección deliberada de una matriz de densidad a un Arquetipo puro.
 
-    Extrae P(Ánima) = ρ[0,0] de la matriz de densidad reconstruida.
-    Válido para estados puros o mixtos con amplitudes reales.
+    Una matriz mixta no puede representarse exactamente mediante dos amplitudes.
+    Para análisis de estados mixtos debe utilizarse rho_rec directamente.
     """
-    rho     = resultado_bloch["rho_rec"]
-    p_anima = float(np.real(rho[0, 0]))
-    p_anima = float(np.clip(p_anima, 0.0, 1.0))
-    alpha   = float(np.sqrt(p_anima))
-    beta    = float(np.sqrt(1.0 - p_anima))
-    return Arquetipo(alpha if alpha > 1e-9 else 1e-9, beta if beta > 1e-9 else 1e-9)
+    rho = resultado_bloch["rho_rec"]
+    p_anima = float(np.clip(np.real(rho[0, 0]), 0.0, 1.0))
+    alpha = float(np.sqrt(p_anima))
+    beta = float(np.sqrt(1.0 - p_anima))
+    return Arquetipo(alpha if alpha > 1e-9 else 1e-9,
+                     beta if beta > 1e-9 else 1e-9)
+
+
+def fidelidad_densidad(rho_a: np.ndarray, rho_b: np.ndarray) -> float:
+    """Fidelidad de Uhlmann entre dos matrices de densidad de un qubit."""
+    def sqrtm_psd(rho: np.ndarray) -> np.ndarray:
+        vals, vecs = np.linalg.eigh(rho)
+        vals = np.clip(vals.real, 0.0, None)
+        return (vecs * np.sqrt(vals)) @ vecs.conj().T
+
+    root_a = sqrtm_psd(rho_a)
+    middle = root_a @ rho_b @ root_a
+    root_middle = sqrtm_psd(middle)
+    return float(np.clip(np.trace(root_middle).real ** 2, 0.0, 1.0))
 
 
 # ─────────────────────────────────────────────
 # Simuladores de medición en bases X e Y
 # ─────────────────────────────────────────────
+
+def medir_base_z(arq: Arquetipo, n: int, seed: int | None = None) -> list[int]:
+    """Simula mediciones Z con RNG local, haciendo reproducible toda la QST."""
+    rng = np.random.default_rng(seed)
+    p_anima = arq.prob_anima()
+    return [0 if rng.random() < p_anima else 1 for _ in range(n)]
+
 
 def medir_base_x(arq: Arquetipo, n: int, seed: int | None = None) -> list[int]:
     """
@@ -172,10 +192,12 @@ def tomografia_registro(
     rng = np.random.default_rng(seed)
     resultados = {}
     for nombre, qubit in zip(registro.COMPONENTES, registro.qubits):
-        s = int(rng.integers(0, 99999))
-        obs_z = [qubit.medir()           for _ in range(n_obs)]
-        obs_x = medir_base_x(qubit, n_obs, seed=s)
-        obs_y = medir_base_y(qubit, n_obs, seed=s + 1)
+        s_z = int(rng.integers(0, 99999))
+        s_x = int(rng.integers(0, 99999))
+        s_y = int(rng.integers(0, 99999))
+        obs_z = medir_base_z(qubit, n_obs, seed=s_z)
+        obs_x = medir_base_x(qubit, n_obs, seed=s_x)
+        obs_y = medir_base_y(qubit, n_obs, seed=s_y)
         resultados[nombre] = tomografia_bloch(obs_z, obs_x, obs_y)
     return resultados
 
