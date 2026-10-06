@@ -117,10 +117,24 @@ def reconstruir_arquetipo(resultado_bloch: dict) -> Arquetipo:
     """
     rho = resultado_bloch["rho_rec"]
     p_anima = float(np.clip(np.real(rho[0, 0]), 0.0, 1.0))
+
+    # Elegimos la fase global de alpha real y no negativa. Si el estado
+    # reconstruido es puro, rho[0,1] = alpha * conj(beta), por lo que la
+    # fase relativa puede recuperarse sin descartarla.
     alpha = float(np.sqrt(p_anima))
-    beta = float(np.sqrt(1.0 - p_anima))
-    return Arquetipo(alpha if alpha > 1e-9 else 1e-9,
-                     beta if beta > 1e-9 else 1e-9)
+    if alpha > 1e-9:
+        beta_complex = np.conj(rho[0, 1]) / alpha
+    else:
+        beta_complex = 1.0 + 0.0j
+
+    # La proyección sigue siendo deliberada cuando rho es mixta: una matriz
+    # mixta no puede representarse exactamente mediante dos amplitudes.
+    # Conservamos, sin embargo, la fase estimada en la coherencia rho[0,1].
+    beta_norm = abs(beta_complex)
+    if beta_norm <= 1e-9:
+        beta_complex = 1e-9 + 0.0j
+
+    return Arquetipo(alpha if alpha > 1e-9 else 1e-9, beta_complex)
 
 
 def fidelidad_densidad(rho_a: np.ndarray, rho_b: np.ndarray) -> float:
