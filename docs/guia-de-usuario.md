@@ -129,9 +129,9 @@ El modelo lineal se desvía sistemáticamente. El polinomial (grado 2, seleccion
 **¿Qué simula?**
 Dos qubits en estado de Bell `|Φ⁺⟩ = (|00⟩ + |11⟩)/√2`. Se aplica un canal de desfase con intensidad `γ` al primer qubit y se mide la correlación en base X.
 
-**Física:** la correlación teórica en base X es `1 − γ`. Con `γ = 0` la correlación es perfecta; con `γ = 1` se aplica Pauli-Z con certeza y la correlación cae a 0 (anticorrelación perfecta en esta métrica).
+**Física:** el canal usa `K₀ = √(1−γ/2)·I` y `K₁ = √(γ/2)·Z`, que multiplica la coherencia por `(1 − γ)`. Por tanto `⟨X⊗X⟩ = 1 − γ` y la probabilidad de coincidencia en base X es `P(x₁=x₂) = 1 − γ/2`. Con `γ = 0` la coincidencia es perfecta; con `γ = 1` vale `0.5`, es decir, azar: no hay anticorrelación. La derivación está en `docs/EXPERIMENTOS/E002_DECOHERENCIA.md`.
 
-**Jung:** el entrelazamiento modela la sincronicidad — correlación acausal entre evento interno y externo. El parámetro `γ` modela la represión: cuanto mayor, más se degrada la conexión entre mundo interno y externo.
+**Jung (analogía de modelado):** el entrelazamiento se usa como imagen de la sincronicidad y `γ` como imagen de la represión. El experimento sólo establece propiedades del modelo matemático; no aporta evidencia de sincronicidad ni de entrelazamiento físico en fenómenos psicológicos.
 
 **Dataset:** `datasets/sincronicidad_corr.csv` — columnas `gamma`, `correlacion`.
 
@@ -183,9 +183,9 @@ El módulo `interventions.py` implementa puertas cuánticas como transformacione
 
 | Función | Puerta | Efecto | Jung |
 |---------|--------|--------|------|
-| `apertura_consciente` | Hadamard | Lleva cualquier estado a P(Ánima) = 0.5 | Apertura total al inconsciente |
+| `apertura_consciente` | Hadamard | Lleva \|0⟩ y \|1⟩ a P(Ánima) = 0.5; no cualquier estado (H\|+⟩ = \|0⟩) | Apertura total al inconsciente |
 | `integracion_parcial(theta)` | Ry(θ) | Desplaza gradualmente el equilibrio | Integración progresiva de la Sombra |
-| `amplificacion(polo, theta)` | Ry dirigida | Refuerza un polo específico | Técnica de amplificación junguiana |
+| `amplificacion(polo, theta)` | Ry dirigida | Rota hacia el polo elegido (lo sobrepasa si θ es mayor que la distancia al polo) | Técnica de amplificación junguiana |
 | `proyeccion` | Pauli-X | Inversión total de polos | Proyección psíquica: Persona ↔ Sombra |
 
 **Usarlas con `SesionTerapeutica`:**
@@ -211,8 +211,8 @@ print(sesion.exportar_json())        # historial completo en JSON
 **Ángulos de referencia para `integracion_parcial`:**
 - `θ = π/6` (30°) — intervención suave
 - `θ = π/4` (45°) — integración moderada
-- `θ = π/2` (90°) — rotación fuerte hacia el equilibrio
-- `θ = π`   (180°) — inversión completa (equivale a proyección)
+- `θ = π/2` (90°) — lleva `|0⟩` a la superposición equilibrada; el efecto sobre otros estados depende del estado
+- `θ = π`   (180°) — intercambia las probabilidades de los polos como la proyección, pero no es el mismo estado (difieren en una fase relativa)
 
 ---
 
@@ -345,7 +345,7 @@ from lindblad import ParConLindblad, comparar_canales, escanear_espacio_lindblad
 par = ParConLindblad(seed=42)
 par.aplicar_represion_lindblad(gamma1=0.3, gamma2=0.4)
 print(par.metricas())
-# → {'entropia_entrelazamiento': ..., 'correlacion_teorica': ...}
+# → {'entropia_reducida': ..., 'negatividad': ..., 'concurrencia': ..., 'correlacion_teorica': ...}
 
 # Comparar los tres regímenes: desfase Z, relajación T1, canal mixto
 comparar_canales()
@@ -355,7 +355,7 @@ g1, g2, mat = escanear_espacio_lindblad(n_puntos=11, n_trials=200)
 graficar_espacio_lindblad(g1, g2, mat)
 ```
 
-**Diferencia clave con el canal original:** `ParConDecoherencia.aplicar_represion(gamma)` aplica solo desfase Z (equivale a γ₁=0, γ₂=gamma en el Lindblad). El canal Lindblad completo permite separar los dos mecanismos y explorar su espacio 2D.
+**Diferencia clave con el canal original:** `ParConDecoherencia.aplicar_represion(gamma)` aplica solo desfase Z. Equivale a γ₁=0 y γ₂·dt = −ln(1−gamma) en el Lindblad, no a γ₂=gamma: el canal de Kraus multiplica la coherencia por (1−γ) y el de Lindblad por e^{−γ₂·dt}. El canal Lindblad completo permite separar los dos mecanismos y explorar su espacio 2D.
 
 ---
 
@@ -366,7 +366,7 @@ Reconstruye el estado psíquico completo desde mediciones en tres bases ortogona
 **Protocolo de 3 bases:**
 - **Base Z** `{|0⟩, |1⟩}` — mide rz = polarización Ánima/Ánimus
 - **Base X** `{|+⟩, |−⟩}` — mide rx = coherencia entre polos
-- **Base Y** `{|+i⟩, |−i⟩}` — mide ry = fase compleja (siempre ≈ 0 para amplitudes reales)
+- **Base Y** `{|+i⟩, |−i⟩}` — mide ry = 2·Im(α*β), la fase compleja (≈ 0 para amplitudes reales)
 
 ```python
 from qst import (tomografia_z, tomografia_bloch, reconstruir_arquetipo,

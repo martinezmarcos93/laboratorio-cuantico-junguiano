@@ -3,7 +3,9 @@ lindblad.py — Canal de Lindblad generalizado para represión compleja.
 
 Propuesto en INFORME_ANALISIS.md (MEJORA 7).
 
-Extiende ParConDecoherencia con dos mecanismos distintos de represión:
+Extiende ParConDecoherencia con dos mecanismos distintos de ruido. Las lecturas
+"represión", "olvido" o "insight" son analogías de modelado, no equivalencias
+físicas ni clínicas.
 
   γ₁ (relajación / T1):   olvido activo — el contenido se disipa al inconsciente
                            Operador: L1 = √γ₁ · (σ₋ ⊗ I)   donde σ₋|1⟩ = |0⟩
@@ -14,8 +16,17 @@ Extiende ParConDecoherencia con dos mecanismos distintos de represión:
                            Junguiano: represión que no borra el contenido sino que impide
                            el "insight" — el arquetipo existe pero no puede volverse consciente.
 
-La ecuación maestra de Lindblad integrada con Euler:
-    ρ(t + dt) = ρ(t) + dt · Σ_k [Lk ρ Lk† − ½{Lk†Lk, ρ}]
+Ecuación maestra de Lindblad, dρ/dt = Σ_k [Lk ρ Lk† − ½{Lk†Lk, ρ}], resuelta de
+forma exacta con la exponencial del superoperador: ρ(t) = exp(𝓛 t) ρ(0).
+
+Solución analítica para |Φ+⟩ (verificada en tests/test_lindblad.py), con t = dt:
+    ρ[00,00] = 1/2          ρ[11,11] = e^{−γ₁t}/2      ρ[01,01] = (1 − e^{−γ₁t})/2
+    ρ[00,11] = ρ[11,00] = ½ · e^{−γ₁t/2} · e^{−γ₂t}
+
+Relación con el canal de Kraus de `ParConDecoherencia.aplicar_represion(γ)`:
+ese canal multiplica la coherencia por (1 − γ); el desfase de Lindblad la
+multiplica por e^{−γ₂t}. NO son el mismo canal con γ₂ = γ: coinciden cuando
+γ₂·t = −ln(1 − γ). En particular γ = 1 (decoherencia total) exige γ₂·t → ∞.
 """
 
 from __future__ import annotations
@@ -31,8 +42,8 @@ class ParConLindblad(ParConDecoherencia):
     """
     Par entrelazado con canal de Lindblad de dos parámetros.
 
-    Drop-in replacement de ParConDecoherencia que añade el canal completo.
-    El canal original (solo desfase) equivale a γ₁=0, γ₂=gamma.
+    Extiende ParConDecoherencia con el canal completo. El canal de Kraus
+    original equivale a γ₁ = 0 y γ₂·dt = −ln(1 − gamma), no a γ₂ = gamma.
     """
 
     def aplicar_represion_lindblad(
@@ -48,8 +59,10 @@ class ParConLindblad(ParConDecoherencia):
         Args:
             gamma1: tasa de relajación [0, 1]  — olvido activo (T1)
             gamma2: tasa de desfase puro [0, 1] — interferencia bloqueada (T2)
-            dt:     tiempo total de evolución
-            pasos:  subdivisiones del intervalo (más pasos = integración más precisa)
+            dt:     tiempo total de evolución (>= 0)
+            pasos:  sin efecto sobre el resultado. Se conserva y se valida por
+                    compatibilidad con la versión que integraba por Euler; la
+                    evolución actual es exacta e independiente de este valor.
         """
         for nombre, val in (("gamma1", gamma1), ("gamma2", gamma2)):
             if not isinstance(val, (int, float, np.integer, np.floating)) or not np.isfinite(val):
@@ -225,8 +238,8 @@ def comparar_canales(
     ax.plot(gamma_vals, corr_z,   "o-", color="#89b4fa", lw=2, ms=5, label="Desfase puro Z (T2)")
     ax.plot(gamma_vals, corr_t1,  "s-", color="#f38ba8", lw=2, ms=5, label="Relajación T1")
     ax.plot(gamma_vals, corr_mix, "^-", color="#a6e3a1", lw=2, ms=5, label="Canal mixto (T1/2 + T2/2)")
-    ax.plot(gamma_vals, [1 - g for g in gamma_vals],
-            "k:", lw=1.5, label="Teórico Z: 1 − γ")
+    ax.plot(gamma_vals, [1 - g / 2 for g in gamma_vals],
+            "k:", lw=1.5, label="Teórico Z: 1 − γ/2")
     ax.set_xlabel("γ (intensidad de represión)")
     ax.set_ylabel("Correlación en base X")
     ax.set_title("Comparación de canales de represión Lindblad")

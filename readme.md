@@ -28,7 +28,7 @@ El proyecto modela los arquetipos psíquicos de Jung como qubits, las intervenci
 Un qubit `α|0⟩ + β|1⟩` se mide repetidamente variando `α`. La frecuencia de colapso al polo Ánima sigue `P(0) = |α|²` (relación cuadrática). Se compara un modelo lineal y un polinomial (con GridSearchCV para selección automática de grado).
 
 **Experimento B — Sincronicidad por entrelazamiento**
-Dos qubits en estado de Bell `|Φ⁺⟩`. Se introduce una probabilidad `γ` de error de fase (represión) y se mide la correlación en base X. Con la convención actual del canal, γ=0 representa ausencia de ruido y γ=1 pérdida completa de coherencia. La relación exacta se valida analíticamente y mediante tests, no se asume por analogía.
+Dos qubits en estado de Bell `|Φ⁺⟩`. Se introduce una probabilidad `γ` de error de fase (represión) y se mide la correlación en base X. Con la convención actual del canal, γ=0 representa ausencia de ruido y γ=1 pérdida completa de coherencia. La relación exacta, `P(x₁=x₂) = 1 − γ/2` (con `⟨X⊗X⟩ = 1 − γ`), se valida analíticamente y mediante tests, no se asume por analogía. Estado de cada experimento: [`docs/RESULTADOS_VALIDACION_LOCAL.md`](docs/RESULTADOS_VALIDACION_LOCAL.md).
 
 **Experimento C — Dataset de fidelidad arquetípica**
 Matriz de fidelidades `F = |⟨ψᵢ|ψⱼ⟩|²` entre todos los pares de arquetipos con distintos `α`. Fundamento para el diagnóstico por proximidad arquetípica. Entrenado con un MLPRegressor.
@@ -191,7 +191,9 @@ print(tomografia_bloch(obs, obs_x, obs_y))
 
 **Dataset A:** el modelo polinomial (grado 2) obtiene R² ≈ 1.0. El modelo lineal falla sistemáticamente porque la relación real es cuadrática — ilustra el costo epistémico de asumir el modelo incorrecto.
 
-**Dataset B:** la correlación decrece linealmente con γ. El modelo lineal obtiene R² ≈ 1.0.
+**Dataset B:** la probabilidad de coincidencia decrece linealmente con γ (`1 − γ/2`). El modelo lineal obtiene R² ≈ 1.0.
+
+> Ambos ajustes recuperan la fórmula con la que se simularon los datos (`P = α²` y `P = 1 − γ/2`). Comprueban que el pipeline funciona; no son un hallazgo ni evidencia a favor de ninguna hipótesis psicológica.
 
 **Diagnóstico Bayesiano:** con 200 observaciones el IC 95% de α típicamente tiene ancho < 0.15; con 500 observaciones < 0.08.
 
