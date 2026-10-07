@@ -61,6 +61,16 @@ La arquitectura objetivo es:
 - E011 Estructuras arquetípicas emergentes
 - E012 Trayectorias de individuación
 
+### Estado de la línea experimental
+
+| Experimento | Estado | Resultado |
+|---|---|---|
+| E001–E004 | Validados matemática y computacionalmente | Infraestructura correcta; no ponen a prueba ninguna hipótesis psicológica |
+| E005 (S002 y S003 en `saussure-quantum`) | Cerrado en fase sintética | Sin evidencia de ventaja cuántico-like; el diseño de dos preguntas no separa clases de modelos |
+| E006–E012 | No iniciados | — |
+
+Los niveles III y IV (semiótica y psicología simbólica) no deben iniciarse mientras el nivel II no muestre una señal cuántico-like identificable. La integración con categorías junguianas queda explícitamente fuera hasta entonces.
+
 ## 5. Modelos a comparar
 
 Para cada experimento se implementarán, cuando sea posible:

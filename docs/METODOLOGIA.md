@@ -26,6 +26,18 @@ Ejemplos:
 - regresión;
 - modelos de estado clásicos.
 
+El modelo de control no debe ser artificialmente débil. Antes de comparar hay que comprobar su dimensión observable: si es saturado para el diseño, reproduce cualquier dato y la comparación de ajuste no puede favorecer a ningún otro modelo (ver S002 y S003 en `saussure-quantum`).
+
+## Identificabilidad
+
+Ningún experimento pasa a la fase de datos sin:
+
+1. conteo de observables libres del diseño;
+2. dimensión de la familia observable de cada modelo;
+3. búsqueda de modelos distintos con observables idénticos;
+4. recuperación del modelo generador sobre datos sintéticos;
+5. análisis de potencia.
+
 ## Modelo quantum-like
 
 Puede utilizar:

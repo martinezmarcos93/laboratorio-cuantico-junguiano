@@ -57,6 +57,13 @@ cuando el proceso de respuesta modifica el estado.
 
 Comparar con modelos clásicos que permitan explícitamente actualización de estado.
 
+Estado: desarrollado en el repositorio `saussure-quantum` como S002 y S003, sólo con datos sintéticos.
+
+- S002 (una respuesta final, dos órdenes): cerrado con resultado negativo de diseño; el modelo clásico es saturado.
+- S003 (respuestas conjuntas, igualdad QQ): cerrado en su fase sintética. La igualdad QQ es falsable para el modelo proyectivo, pero un modelo clásico de Markov con dos estados reproduce las mismas distribuciones.
+
+La desigualdad `P(B|A)P(A) != P(A|B)P(B)` describe un efecto de orden; no distingue por sí sola un modelo cuántico-like de uno clásico con actualización de estado.
+
 ## E006 — Interferencia
 
 Buscar situaciones donde:

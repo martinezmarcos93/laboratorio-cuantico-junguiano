@@ -124,6 +124,12 @@ Antes de la corrección, los dos estados complejos **no convergían**: fidelidad
 
 Ninguna corrección modificó una hipótesis, una métrica o un valor esperado para hacer pasar un test. Los valores esperados de los tests nuevos se derivan de las ecuaciones del canal y de los estados.
 
+## Actualización tras S003 (2026-10-07)
+
+S003 (respuestas conjuntas e igualdad QQ) se desarrolló en `saussure-quantum`. En este repositorio no cambió código: sólo los documentos del programa (hipótesis, catálogo, metodología, referencias). La suite se volvió a ejecutar completa como regresión: 174 de 174.
+
+Consecuencia para este laboratorio: H7 (valor añadido del modelo quantum-like) sigue sin soporte y quedó reformulada en `docs/HIPOTESIS.md`. Los niveles de semiótica y psicología simbólica, y cualquier integración con categorías junguianas, quedan en suspenso hasta que exista una señal identificable en el nivel de cognición.
+
 ## Limitaciones
 
 - No hay datos empíricos. Todo lo validado es consistencia interna entre código y matemática.
