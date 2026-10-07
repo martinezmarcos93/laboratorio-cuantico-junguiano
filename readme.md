@@ -12,7 +12,7 @@ El proyecto modela los arquetipos psíquicos de Jung como qubits, las intervenci
 |---|---|---|
 | Qubit | Par de opuestos arquetípicos (Ánima/Ánimus) | Dos niveles que representan la tensión consciente/inconsciente |
 | Superposición | Ambigüedad psíquica | El arquetipo no está definido hasta que se "observa" (colapso) |
-| Entrelazamiento | Sincronicidad | Correlación entre un contenido interno y un evento externo |
+| Entrelazamiento | Modelo de correlación simbólica | Correlación simulada entre estados; no implica entrelazamiento físico |
 | Medición | Toma de conciencia (insight) | Colapso de la función de onda hacia un polo |
 | Decoherencia | Represión, censura | Pérdida de la sincronicidad por canal de desfase |
 | Puerta Hadamard | Apertura consciente | Lleva el estado a superposición máxima |
@@ -28,7 +28,7 @@ El proyecto modela los arquetipos psíquicos de Jung como qubits, las intervenci
 Un qubit `α|0⟩ + β|1⟩` se mide repetidamente variando `α`. La frecuencia de colapso al polo Ánima sigue `P(0) = |α|²` (relación cuadrática). Se compara un modelo lineal y un polinomial (con GridSearchCV para selección automática de grado).
 
 **Experimento B — Sincronicidad por entrelazamiento**
-Dos qubits en estado de Bell `|Φ⁺⟩`. Se introduce una probabilidad `γ` de error de fase (represión) y se mide la correlación en base X. La relación teórica es `correlación = 1 − γ` (perfectamente lineal).
+Dos qubits en estado de Bell `|Φ⁺⟩`. Se introduce una probabilidad `γ` de error de fase (represión) y se mide la correlación en base X. Con la convención actual del canal, γ=0 representa ausencia de ruido y γ=1 pérdida completa de coherencia. La relación exacta, `P(x₁=x₂) = 1 − γ/2` (con `⟨X⊗X⟩ = 1 − γ`), se valida analíticamente y mediante tests, no se asume por analogía. Estado de cada experimento: [`docs/RESULTADOS_VALIDACION_LOCAL.md`](docs/RESULTADOS_VALIDACION_LOCAL.md).
 
 **Experimento C — Dataset de fidelidad arquetípica**
 Matriz de fidelidades `F = |⟨ψᵢ|ψⱼ⟩|²` entre todos los pares de arquetipos con distintos `α`. Fundamento para el diagnóstico por proximidad arquetípica. Entrenado con un MLPRegressor.
@@ -49,10 +49,10 @@ Secuencia interactiva de intervenciones cuánticas sobre un arquetipo inicial. C
 | `ml/collect_data.py` | Generación de datasets A, B y C |
 | `ml/train_regression.py` | Entrenamiento de modelos: lineal, polinomial (GridSearchCV), MLP |
 | `ml/analysis.py` | Visualizaciones: scatter, heatmap de fidelidad, firma entrópica, radar chart |
-| `analytics/diagnostico.py` | Diagnóstico arquetipal bayesiano — infiere `α` desde observaciones conductuales |
+| `analytics/diagnostico.py` | Inferencia bayesiana experimental — estima `α` a partir de observaciones simuladas |
 | `analytics/events.py` | Event Sourcing — `DiarioIndividuacion` persiste y analiza sesiones en JSONL |
 | `analytics/qst.py` | Tomografía de Estado Cuántico — reconstruye el vector de Bloch desde 3 bases |
-| `analytics/informe_analitico.py` | Informes clínicos narrativos generados por la API de Claude |
+| `analytics/informe_analitico.py` | Informes analíticos narrativos generados por la API de Claude |
 | `config.py` | Rutas centralizadas para datasets y modelos |
 | `streamlit_app.py` | Dashboard interactivo (10 secciones) |
 | `main.py` | CLI con menú de 11 opciones |
@@ -183,7 +183,7 @@ print(tomografia_bloch(obs, obs_x, obs_y))
 | 7 | 🔬 Diagnóstico Bayesiano | Infiere α de cada componente con intervalos de credibilidad |
 | 8 | ⚗️ Canal de Lindblad | Comparación de regímenes T1/T2 + mapa de represión 2D |
 | 9 | 🔭 Tomografía Cuántica (QST) | Reconstruye el vector de Bloch, visualiza esfera de Bloch 2D |
-| 10 | 📋 Informe Clínico (IA) | Informe narrativo generado por Claude API |
+| 10 | 📋 Informe Analítico (IA) | Informe narrativo generado por Claude API |
 
 ---
 
@@ -191,7 +191,9 @@ print(tomografia_bloch(obs, obs_x, obs_y))
 
 **Dataset A:** el modelo polinomial (grado 2) obtiene R² ≈ 1.0. El modelo lineal falla sistemáticamente porque la relación real es cuadrática — ilustra el costo epistémico de asumir el modelo incorrecto.
 
-**Dataset B:** la correlación decrece linealmente con γ. El modelo lineal obtiene R² ≈ 1.0.
+**Dataset B:** la probabilidad de coincidencia decrece linealmente con γ (`1 − γ/2`). El modelo lineal obtiene R² ≈ 1.0.
+
+> Ambos ajustes recuperan la fórmula con la que se simularon los datos (`P = α²` y `P = 1 − γ/2`). Comprueban que el pipeline funciona; no son un hallazgo ni evidencia a favor de ninguna hipótesis psicológica.
 
 **Diagnóstico Bayesiano:** con 200 observaciones el IC 95% de α típicamente tiene ancho < 0.15; con 500 observaciones < 0.08.
 
@@ -217,7 +219,7 @@ anthropic>=0.40.0
 
 ## Referencias
 
-- Jung, C. G. *Sincronicidad: un principio de conexión acausal.*
+- Jung, C. G. *Sincronicidad: un principio de conexión acausal.*\n- Yearsley, J. M. & Busemeyer, J. R. *Quantum Cognition and Decision Theories: A Tutorial.*\n- Pothos, E. M. & Busemeyer, J. R. *Quantum Cognition.*
 - Nielsen, M. A. & Chuang, I. L. *Quantum Computation and Quantum Information.*
 - Lindblad, G. *On the generators of quantum dynamical semigroups.* (1976)
 - Documentación de scikit-learn, NumPy, SciPy y Anthropic SDK.

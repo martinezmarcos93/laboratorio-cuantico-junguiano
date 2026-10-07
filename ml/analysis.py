@@ -95,7 +95,7 @@ def analizar_sincronicidad(ax=None) -> None:
 
     ax.scatter(df["gamma"], df["correlacion"], alpha=0.5, label="Datos simulados", zorder=3, s=20)
     ax.plot(gamma_range, modelo.predict(gamma_range), "r--", label="Modelo lineal", lw=1.8)
-    ax.plot(gamma_range, 1 - gamma_range,             "k:",  label="Teórico: 1 − γ", lw=1.5)
+    ax.plot(gamma_range, 1 - gamma_range / 2,         "k:",  label="Teórico: 1 − γ/2", lw=1.5)
 
     ax.set_xlabel("Gamma (nivel de represión)")
     ax.set_ylabel("Correlación en base X")

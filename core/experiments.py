@@ -51,10 +51,23 @@ class Arquetipo:
         ValueError: Si alpha y beta son ambos cero (vector de norma nula).
     """
     def __init__(self, alpha: float, beta: float, seed: int | None = None):
-        # BUG FIX 1: RNG local en lugar de np.random.seed() global
-        self._rng = np.random.default_rng(seed)
+        # BUG FIX 1: RNG local en lugar de np.random.seed() global.
+        # Se conserva la SeedSequence para poder derivar generadores hijos
+        # sin consumir números del flujo propio (ver `derivar`).
+        self._seed_seq = (
+            seed if isinstance(seed, np.random.SeedSequence) else np.random.SeedSequence(seed)
+        )
+        self._rng = np.random.default_rng(self._seed_seq)
 
-        norm = np.sqrt(abs(alpha) ** 2 + abs(beta) ** 2)
+        if not (np.isfinite(alpha) and np.isfinite(beta)):
+            # NaN/inf se propagaban en silencio y producían un estado con
+            # amplitudes NaN.
+            raise ValueError(
+                f"Las amplitudes deben ser números finitos; recibido alpha={alpha!r}, beta={beta!r}."
+            )
+        # np.hypot evita el underflow/overflow de elevar al cuadrado
+        # amplitudes extremas (1e-200 se tomaba por cero; 1e200 desbordaba).
+        norm = float(np.hypot(abs(alpha), abs(beta)))
         if norm == 0:
             raise ValueError(
                 "Las amplitudes alpha y beta no pueden ser ambas cero: "
@@ -62,6 +75,17 @@ class Arquetipo:
             )
         self.alpha = alpha / norm
         self.beta  = beta  / norm
+
+    def derivar(self, alpha: complex, beta: complex) -> "Arquetipo":
+        """Nuevo Arquetipo cuyo generador aleatorio desciende del de éste.
+
+        Las transformaciones (rotaciones, puertas) devuelven un estado nuevo.
+        Si ese estado recibiera un generador sin semilla, una secuencia
+        Arquetipo(seed=s) → transformación → medición dejaría de ser
+        reproducible. El hijo recibe una SeedSequence derivada de la del
+        padre, sin alterar la secuencia de mediciones del padre.
+        """
+        return Arquetipo(alpha, beta, seed=self._seed_seq.spawn(1)[0])
 
     def medir(self) -> int:
         """
@@ -120,13 +144,19 @@ class Arquetipo:
 
         Retorna un nuevo Arquetipo con el estado rotado (inmutable).
 
-        BUG FIX 5: el objeto resultante ahora recibe un RNG propio.
+        Para amplitudes reales no negativas, θ > 0 traslada probabilidad de
+        |0⟩ (Ánima) hacia |1⟩ (Ánimus) y θ < 0 hace lo contrario.
+
+        BUG FIX 5: el objeto resultante recibe un RNG propio, derivado del
+        padre para conservar la reproducibilidad con semilla.
         """
+        if not np.isfinite(theta):
+            raise ValueError(f"theta debe ser finito; recibido {theta!r}.")
         c, s      = np.cos(theta / 2), np.sin(theta / 2)
         new_alpha = c * self.alpha - s * self.beta
         new_beta  = s * self.alpha + c * self.beta
         # Ry es unitaria → norma preservada → Arquetipo() normaliza trivialmente
-        return Arquetipo(new_alpha, new_beta)
+        return self.derivar(new_alpha, new_beta)
 
     def __eq__(self, otro: object) -> bool:
         if not isinstance(otro, Arquetipo):
@@ -172,22 +202,28 @@ class ParConDecoherencia:
         BUG FIX 6: guard contra NaN y valores fuera de rango explicitados.
 
         Operadores de Kraus:
-            K0 = sqrt(1 - gamma) * I4
-            K1 = sqrt(gamma)     * Z⊗I2
+            K0 = sqrt(1 - gamma/2) * I4
+            K1 = sqrt(gamma/2)     * Z⊗I2
         """
         # BUG FIX 6: protección reforzada
-        if not isinstance(gamma, (int, float)) or np.isnan(gamma):
+        if not isinstance(gamma, (int, float, np.integer, np.floating)) or np.isnan(gamma):
             raise TypeError(f"gamma debe ser un número real; recibido: {gamma!r}")
         if not (0.0 <= gamma <= 1.0):
             raise ValueError(
                 f"gamma debe estar en [0, 1]; recibido {gamma}. "
                 "Fuera de rango produce sqrt de número negativo (NaN silencioso)."
             )
+        # A float de doble precisión: con np.float32 las raíces de los
+        # operadores de Kraus perdían precisión y la traza se desviaba ~1e-8.
+        gamma = float(gamma)
         Z  = np.array([[1, 0], [0, -1]])
         I2 = np.eye(2)
         I4 = np.eye(4)
-        K0 = np.sqrt(1 - gamma) * I4
-        K1 = np.sqrt(gamma)     * np.kron(Z, I2)
+        # Convención: gamma=0 → sin ruido; gamma=1 → pérdida total
+        # de coherencia de fase. Los operadores conservan traza:
+        # K0 = sqrt(1-gamma/2) I, K1 = sqrt(gamma/2) Z.
+        K0 = np.sqrt(1 - gamma / 2) * I4
+        K1 = np.sqrt(gamma / 2) * np.kron(Z, I2)
         self.rho = K0 @ self.rho @ K0.conj().T + K1 @ self.rho @ K1.conj().T
 
     def medir_base_X(self) -> tuple[int, int]:
@@ -220,20 +256,43 @@ class ParConDecoherencia:
             prob_igual += np.trace(P_joint @ self.rho).real
         return float(prob_igual)
 
-    def entropia_entrelazamiento(self) -> float:
-        """
-        Entropía de Von Neumann de la matriz de densidad reducida del qubit 1.
+    def entropia_reducida(self) -> float:
+        """Entropía de Von Neumann de la reducción de un qubit.
 
-        MEJORA NUEVA: mide el grado de entrelazamiento cuántico restante
-        tras aplicar el canal de desfase. Para |Φ+⟩ puro = 1 bit;
-        para estado completamente mixto = 1 bit también (la represión
-        transforma el entrelazamiento pero no lo destruye trivialmente).
-
-        Junguianamente: cuantifica la "profundidad sincrónica" entre
-        el contenido interno y el evento externo.
+        Esta magnitud es la entropía de entrelazamiento sólo para estados
+        globales puros. Después de ruido/decoherencia el estado global puede
+        ser mixto, por lo que NO debe interpretarse por sí sola como medida
+        de entrelazamiento.
         """
-        # Trazar sobre el qubit 2 para obtener rho_1
-        rho_1    = np.trace(self.rho.reshape(2, 2, 2, 2), axis1=1, axis2=3)
-        eigvals  = np.linalg.eigvalsh(rho_1)
-        eigvals  = eigvals[eigvals > 1e-12]          # evitar log(0)
+        rho_1 = np.trace(self.rho.reshape(2, 2, 2, 2), axis1=1, axis2=3)
+        eigvals = np.linalg.eigvalsh(rho_1)
+        eigvals = eigvals[eigvals > 1e-12]
         return float(-np.sum(eigvals * np.log2(eigvals)))
+
+    def negatividad(self) -> float:
+        """Negatividad del estado bipartito.
+
+        Es cero para estados separables y positiva para estados con
+        entrelazamiento detectable mediante la transposición parcial.
+        Para el estado Bell |Φ+⟩ vale 0.5. Es preferible a usar la entropía
+        reducida como proxy después de aplicar ruido local.
+        """
+        rho_reshaped = self.rho.reshape(2, 2, 2, 2)
+        rho_pt = np.transpose(rho_reshaped, (2, 1, 0, 3)).reshape(4, 4)
+        eigvals = np.linalg.eigvalsh(rho_pt)
+        return float(np.sum(np.abs(eigvals[eigvals < 0])))
+
+    def concurrencia(self) -> float:
+        """Concurrencia de Wootters para un estado bipartito de dos qubits."""
+        Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
+        YY = np.kron(Y, Y)
+        rho_tilde = YY @ self.rho.conj() @ YY
+        eigvals = np.linalg.eigvals(self.rho @ rho_tilde)
+        lambdas = np.sort(np.sqrt(np.maximum(0.0, np.real(eigvals))))[::-1]
+        value = lambdas[0] - np.sum(lambdas[1:])
+        return float(np.clip(value, 0.0, 1.0))
+
+    # Compatibilidad histórica: el nombre antiguo era ambiguo.
+    def entropia_entrelazamiento(self) -> float:
+        """Alias de compatibilidad. Preferir entropia_reducida()."""
+        return self.entropia_reducida()

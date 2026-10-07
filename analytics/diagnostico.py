@@ -47,13 +47,20 @@ def inferir_alpha(
         dict con:
             p_media    — media posterior de p = |α|²
             p_moda     — moda posterior (MAP) de p
-            alpha_MAP  — √(p_moda): estimación más probable de α
+            alpha_MAP  — √(p_moda). Es la raíz de la moda de p, no la moda
+                         posterior de α (la moda no es invariante ante el
+                         cambio de variable); ambas coinciden para n grande
             IC_95_p    — intervalo de credibilidad al 95% de p
             IC_95_alpha— IC 95% convertido a α
             n_obs      — número de observaciones usadas
     """
     if not observaciones:
         raise ValueError("Se requiere al menos una observación.")
+    if any(x not in (0, 1) for x in observaciones):
+        # Cualquier valor distinto de 0 se contaba en silencio como Ánimus.
+        raise ValueError("Las observaciones sólo pueden ser 0 (Ánima) o 1 (Ánimus).")
+    if not (np.isfinite(prior_a) and np.isfinite(prior_b)) or prior_a <= 0 or prior_b <= 0:
+        raise ValueError("prior_a y prior_b deben ser finitos y positivos.")
 
     n_anima  = sum(1 for x in observaciones if x == 0)
     n_animus = len(observaciones) - n_anima

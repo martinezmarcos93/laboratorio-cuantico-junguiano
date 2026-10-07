@@ -200,7 +200,8 @@ elif seccion == "🌀 Sincronicidad bajo represión":
     st.header("🌀 Sincronicidad bajo represión (decoherencia)")
     st.markdown(
         "El parámetro `γ` controla la intensidad del canal de desfase sobre el primer qubit. "
-        "La correlación teórica en base X sigue **correlación = 1 − γ**."
+        "La probabilidad teórica de coincidencia en base X es **P(x₁=x₂) = 1 − γ/2** "
+        "(⟨X⊗X⟩ = 1 − γ; ver docs/EXPERIMENTOS/E002_DECOHERENCIA.md)."
     )
 
     col1, col2 = st.columns([1, 2])
@@ -231,7 +232,7 @@ elif seccion == "🌀 Sincronicidad bajo represión":
         fig2.patch.set_facecolor("#0e1117")
         ax2.set_facecolor("#0e1117")
 
-        ax2.plot(gammas_range, 1 - gammas_range, color="#89b4fa", lw=2.5, label="Teórico: 1 − γ")
+        ax2.plot(gammas_range, 1 - gammas_range / 2, color="#89b4fa", lw=2.5, label="Teórico: 1 − γ/2")
         ax2.axvline(gamma,     color="#f38ba8", ls="--", lw=1.5, label=f"γ = {gamma:.2f}")
         ax2.axhline(c_teorica, color="#a6e3a1", ls=":",  lw=1.2, label=f"Corr = {c_teorica:.4f}")
         ax2.scatter([gamma], [c_teorica], color="#f38ba8", s=80, zorder=5)
@@ -429,7 +430,7 @@ elif seccion == "📊 Comparación de modelos ML":
     lin, poli, sinc = cargar_modelos()
 
     if lin is not None:
-        tab1, tab2 = st.tabs(["Arquetipo (P = α²)", "Sincronicidad (corr = 1−γ)"])
+        tab1, tab2 = st.tabs(["Arquetipo (P = α²)", "Sincronicidad (P = 1−γ/2)"])
 
         with tab1:
             try:
@@ -472,7 +473,7 @@ elif seccion == "📊 Comparación de modelos ML":
 
                 ax5.scatter(df_s["gamma"], df_s["correlacion"],
                             alpha=0.5, color="#89dceb", s=20, label="Datos simulados", zorder=3)
-                ax5.plot(g_range, 1 - g_range,            "w:", lw=1.5, label="Teórico: 1−γ")
+                ax5.plot(g_range, 1 - g_range / 2,        "w:", lw=1.5, label="Teórico: 1−γ/2")
                 ax5.plot(g_range, sinc.predict(g_range), color="#f38ba8", lw=1.8, label="Lineal")
 
                 ax5.set_xlabel("γ", color="#cdd6f4")
@@ -701,8 +702,8 @@ elif seccion == "⚗️ Canal de Lindblad":
                                   label="Relajación T1")
                         ax_l.plot(gamma_vals, corr_mix, "^-", color="#a6e3a1", lw=2, ms=5,
                                   label="Canal mixto (T1/2 + T2/2)")
-                        ax_l.plot(gamma_vals, [1-g for g in gamma_vals],
-                                  color="white", ls=":", lw=1.5, label="Teórico Z: 1−γ")
+                        ax_l.plot(gamma_vals, [1 - g / 2 for g in gamma_vals],
+                                  color="white", ls=":", lw=1.5, label="Teórico Z: 1−γ/2")
                         ax_l.set_xlabel("γ", color="#cdd6f4")
                         ax_l.set_ylabel("Correlación en base X", color="#cdd6f4")
                         ax_l.set_title("Comparación de canales de represión", color="#cdd6f4")

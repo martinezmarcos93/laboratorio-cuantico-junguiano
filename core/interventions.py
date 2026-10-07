@@ -34,13 +34,18 @@ from .experiments import Arquetipo
 
 def apertura_consciente(arq: Arquetipo) -> Arquetipo:
     """
-    Puerta Hadamard: superposición máxima independientemente del estado inicial.
-    H = (1/√2)[[1,1],[1,-1]]
-    Jung: suspensión de toda certeza; apertura sin resistencia al inconsciente.
+    Puerta Hadamard. H = (1/√2)[[1,1],[1,-1]]
+
+    Lleva los estados base |0⟩ y |1⟩ a la superposición equilibrada
+    (P(Ánima) = 0.5), pero NO lo hace para cualquier estado: es una
+    involución (H² = I), de modo que H|+⟩ = |0⟩, con P(Ánima) = 1.
+
+    Lectura simbólica (Jung): suspensión de la certeza inicial. Es una
+    analogía de modelado, no una afirmación clínica.
     """
     s2 = 1 / np.sqrt(2)
     # H es unitaria → norma preservada → Arquetipo() normaliza trivialmente
-    return Arquetipo(s2 * (arq.alpha + arq.beta), s2 * (arq.alpha - arq.beta))
+    return arq.derivar(s2 * (arq.alpha + arq.beta), s2 * (arq.alpha - arq.beta))
 
 
 def apertura_consciente_inversa(arq: Arquetipo) -> Arquetipo:
@@ -57,8 +62,11 @@ def integracion_parcial(arq: Arquetipo, theta: float = np.pi / 4) -> Arquetipo:
     Rotación Ry(theta): desplaza gradualmente el equilibrio entre polos.
 
     theta=0   → sin cambio
-    theta=π/2 → acerca al equilibrio (integración moderada)
-    theta=π   → inversión completa (equivale a proyeccion)
+    theta=π/2 → lleva |0⟩ a la superposición equilibrada; para otros estados
+                el efecto depende del estado inicial
+    theta=π   → intercambia las probabilidades de los polos, igual que
+                `proyeccion`, pero NO es el mismo estado: Ry(π)(α, β) = (−β, α)
+                y X(α, β) = (β, α) difieren en una fase relativa
 
     Jung: la integración es gradual; cada sesión rota un ángulo terapéutico.
     """
@@ -67,16 +75,23 @@ def integracion_parcial(arq: Arquetipo, theta: float = np.pi / 4) -> Arquetipo:
 
 def amplificacion(arq: Arquetipo, polo: int = 0, theta: float = np.pi / 3) -> Arquetipo:
     """
-    Rotación que refuerza un polo específico.
+    Rotación Ry que desplaza probabilidad hacia un polo.
 
-    polo=0 (Ánima): amplifica polo consciente.
-    polo=1 (Ánimus): amplifica polo inconsciente.
+    polo=0 (Ánima): rota hacia |0⟩ con Ry(−|θ|).
+    polo=1 (Ánimus): rota hacia |1⟩ con Ry(+|θ|).
 
-    Jung: hacer emerger un contenido latente para procesarlo conscientemente.
+    Con amplitudes reales no negativas y un ángulo que no sobrepase el polo,
+    la probabilidad del polo elegido aumenta. Un ángulo mayor que la
+    distancia angular al polo lo sobrepasa y la probabilidad vuelve a bajar.
+
+    Corrección: el signo estaba invertido (polo=0 usaba Ry(+θ)), de modo que
+    "amplificar Ánima" desde P(Ánima)=0.64 la dejaba en 0.15.
+
+    Lectura simbólica (Jung): hacer emerger un contenido latente.
     """
     if polo not in (0, 1):
         raise ValueError(f"polo debe ser 0 (Ánima) o 1 (Ánimus); recibido: {polo}")
-    direccion = 1 if polo == 0 else -1
+    direccion = -1 if polo == 0 else 1
     return arq.aplicar_rotacion(direccion * abs(theta))
 
 
@@ -87,7 +102,7 @@ def proyeccion(arq: Arquetipo) -> Arquetipo:
     Jung: proyección total — la Persona se convierte en Sombra y viceversa.
     """
     # X es unitaria → norma preservada → Arquetipo() normaliza trivialmente
-    return Arquetipo(arq.beta, arq.alpha)
+    return arq.derivar(arq.beta, arq.alpha)
 
 
 # Aliases para compatibilidad con Streamlit selectbox
@@ -99,6 +114,19 @@ def proyeccion_anima(arq: Arquetipo, **kwargs) -> Arquetipo:
 def proyeccion_animus(arq: Arquetipo, **kwargs) -> Arquetipo:
     """Amplifica el polo Ánimus ignorando parámetros adicionales."""
     return amplificacion(arq, polo=1, theta=kwargs.get("theta", np.pi / 3))
+
+
+def _amplitud_serializable(valor: complex):
+    """Amplitud redondeada para el historial JSON.
+
+    Las amplitudes reales se guardan como float (formato histórico). Una
+    amplitud con parte imaginaria se guarda como [real, imag]: float() sobre
+    un complejo lanzaba TypeError y la sesión no podía registrarse.
+    """
+    valor = complex(valor)
+    if abs(valor.imag) < 1e-12:
+        return round(valor.real, 4)
+    return [round(valor.real, 4), round(valor.imag, 4)]
 
 
 # ─────────────────────────────────────────────
@@ -171,8 +199,8 @@ class SesionTerapeutica:
         """
         self.historial.append({
             "intervencion":     nombre,
-            "alpha":            round(float(arq.alpha), 4),
-            "beta":             round(float(arq.beta),  4),
+            "alpha":            _amplitud_serializable(arq.alpha),
+            "beta":             _amplitud_serializable(arq.beta),
             "P_anima":          round(arq.prob_anima(), 4),
             "P_animus":         round(1 - arq.prob_anima(), 4),
             "entropia":         round(arq.entropia_shannon(), 4),
