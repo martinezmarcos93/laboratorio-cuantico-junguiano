@@ -13,6 +13,7 @@ Protocolo de 3 bases para un qubit:
 La densidad reconstruida: ρ = (I + rx·X + ry·Y + rz·Z) / 2
 
 Para el Arquetipo con amplitudes REALES: ry ≈ 0 siempre (no hay fase compleja).
+Con amplitudes complejas ry = 2·Im(α*β) ≠ 0 y las tres bases son necesarias.
 La diagonal de ρ da directamente P(Ánima) = (1 + rz) / 2.
 """
 
@@ -43,6 +44,7 @@ def tomografia_z(observaciones_z: list[int]) -> dict:
     """
     if not observaciones_z:
         raise ValueError("Se requiere al menos una observación.")
+    _validar_observaciones(observaciones_z, "observaciones_z")
 
     n     = len(observaciones_z)
     k     = sum(1 for x in observaciones_z if x == 0)
@@ -72,9 +74,18 @@ def tomografia_bloch(
         dict con rx, ry, rz, r_norm, pureza, rho_rec y conteos.
     """
     def _p0(obs: list[int]) -> float:
-        if not obs:
-            return 0.5
         return sum(1 for x in obs if x == 0) / len(obs)
+
+    # Sin mediciones en una base no hay estimación: antes se devolvía 0.5 en
+    # silencio y el resultado parecía un estado máximamente mixto medido.
+    for nombre, obs in (("obs_z", obs_z), ("obs_x", obs_x)):
+        if obs is None or len(obs) == 0:
+            raise ValueError(f"{nombre} requiere al menos una observación.")
+        _validar_observaciones(obs, nombre)
+    if obs_y is not None:
+        if len(obs_y) == 0:
+            raise ValueError("obs_y requiere al menos una observación (o None para asumir ry = 0).")
+        _validar_observaciones(obs_y, "obs_y")
 
     rz = 2.0 * _p0(obs_z) - 1.0
     rx = 2.0 * _p0(obs_x) - 1.0
@@ -104,8 +115,14 @@ def tomografia_bloch(
         "rho_rec": rho_rec,
         "n_z":     len(obs_z),
         "n_x":     len(obs_x),
-        "n_y":     len(obs_y) if obs_y else 0,
+        "n_y":     len(obs_y) if obs_y is not None else 0,
     }
+
+
+def _validar_observaciones(obs, nombre: str) -> None:
+    """Las observaciones deben ser 0 o 1; cualquier otro valor se contaba como 1."""
+    if any(x not in (0, 1) for x in obs):
+        raise ValueError(f"{nombre} sólo puede contener 0 y 1.")
 
 
 def reconstruir_arquetipo(resultado_bloch: dict) -> Arquetipo:
@@ -165,10 +182,13 @@ def medir_base_x(arq: Arquetipo, n: int, seed: int | None = None) -> list[int]:
     """
     Simula n mediciones del arquetipo en la base X = {|+⟩, |−⟩}.
 
-    P(+) = |⟨+|ψ⟩|² = (α + β)² / 2
+    P(+) = |⟨+|ψ⟩|² = |α + β|² / 2
+
+    El módulo es necesario para amplitudes complejas: (α + β)² es un número
+    complejo y daba una "probabilidad" incorrecta.
     """
     rng   = np.random.default_rng(seed)
-    p_mas = (arq.alpha + arq.beta) ** 2 / 2.0
+    p_mas = float(abs(arq.alpha + arq.beta) ** 2 / 2.0)
     return [0 if rng.random() < p_mas else 1 for _ in range(n)]
 
 
@@ -176,11 +196,15 @@ def medir_base_y(arq: Arquetipo, n: int, seed: int | None = None) -> list[int]:
     """
     Simula n mediciones en la base Y = {|+i⟩, |−i⟩}.
 
-    Para amplitudes reales: P(+i) = 0.5 → ry ≈ 0.
-    Incluido por completitud del protocolo estándar de tomografía.
+    P(+i) = |⟨+i|ψ⟩|² = |α − iβ|² / 2,  con |+i⟩ = (|0⟩ + i|1⟩)/√2.
+
+    Para amplitudes reales vale 0.5 (ry = 0). Antes se devolvía 0.5 para
+    cualquier estado, por lo que la tomografía de estados con fase compleja
+    convergía a un estado equivocado (fidelidad ≈ 0.5 para |+i⟩).
     """
     rng = np.random.default_rng(seed)
-    return [0 if rng.random() < 0.5 else 1 for _ in range(n)]
+    p_mas_i = float(abs(arq.alpha - 1j * arq.beta) ** 2 / 2.0)
+    return [0 if rng.random() < p_mas_i else 1 for _ in range(n)]
 
 
 # ─────────────────────────────────────────────

@@ -25,6 +25,16 @@ Reconstruir un estado de un qubit a partir de mediciones en bases Z, X e Y.
 
 La fidelidad aumenta con el tamaño muestral y el error estadístico disminuye aproximadamente con la escala esperada de una estimación Bernoulli.
 
+## Probabilidades de medición
+
+Para |ψ⟩ = α|0⟩ + β|1⟩:
+
+- base Z: P(0) = |α|²;
+- base X: P(+) = |α + β|²/2;
+- base Y: P(+i) = |α − iβ|²/2.
+
+Las tres bases son necesarias cuando las amplitudes tienen fase relativa compleja (r_y = 2·Im(α*β) ≠ 0). La simulación de la base Y devolvía 0.5 para cualquier estado y la de la base X omitía el módulo; con eso la tomografía de |+i⟩ convergía a un estado con fidelidad ≈ 0.5. Corregido y cubierto por `tests/test_validacion_local.py`.
+
 ## Punto crítico
 
 Una matriz de densidad mixta no debe convertirse automáticamente en un vector de amplitudes puro. La matriz reconstruida es el objeto científico primario.
