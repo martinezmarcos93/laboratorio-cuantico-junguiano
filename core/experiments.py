@@ -51,10 +51,23 @@ class Arquetipo:
         ValueError: Si alpha y beta son ambos cero (vector de norma nula).
     """
     def __init__(self, alpha: float, beta: float, seed: int | None = None):
-        # BUG FIX 1: RNG local en lugar de np.random.seed() global
-        self._rng = np.random.default_rng(seed)
+        # BUG FIX 1: RNG local en lugar de np.random.seed() global.
+        # Se conserva la SeedSequence para poder derivar generadores hijos
+        # sin consumir números del flujo propio (ver `derivar`).
+        self._seed_seq = (
+            seed if isinstance(seed, np.random.SeedSequence) else np.random.SeedSequence(seed)
+        )
+        self._rng = np.random.default_rng(self._seed_seq)
 
-        norm = np.sqrt(abs(alpha) ** 2 + abs(beta) ** 2)
+        if not (np.isfinite(alpha) and np.isfinite(beta)):
+            # NaN/inf se propagaban en silencio y producían un estado con
+            # amplitudes NaN.
+            raise ValueError(
+                f"Las amplitudes deben ser números finitos; recibido alpha={alpha!r}, beta={beta!r}."
+            )
+        # np.hypot evita el underflow/overflow de elevar al cuadrado
+        # amplitudes extremas (1e-200 se tomaba por cero; 1e200 desbordaba).
+        norm = float(np.hypot(abs(alpha), abs(beta)))
         if norm == 0:
             raise ValueError(
                 "Las amplitudes alpha y beta no pueden ser ambas cero: "
@@ -62,6 +75,17 @@ class Arquetipo:
             )
         self.alpha = alpha / norm
         self.beta  = beta  / norm
+
+    def derivar(self, alpha: complex, beta: complex) -> "Arquetipo":
+        """Nuevo Arquetipo cuyo generador aleatorio desciende del de éste.
+
+        Las transformaciones (rotaciones, puertas) devuelven un estado nuevo.
+        Si ese estado recibiera un generador sin semilla, una secuencia
+        Arquetipo(seed=s) → transformación → medición dejaría de ser
+        reproducible. El hijo recibe una SeedSequence derivada de la del
+        padre, sin alterar la secuencia de mediciones del padre.
+        """
+        return Arquetipo(alpha, beta, seed=self._seed_seq.spawn(1)[0])
 
     def medir(self) -> int:
         """
@@ -120,13 +144,19 @@ class Arquetipo:
 
         Retorna un nuevo Arquetipo con el estado rotado (inmutable).
 
-        BUG FIX 5: el objeto resultante ahora recibe un RNG propio.
+        Para amplitudes reales no negativas, θ > 0 traslada probabilidad de
+        |0⟩ (Ánima) hacia |1⟩ (Ánimus) y θ < 0 hace lo contrario.
+
+        BUG FIX 5: el objeto resultante recibe un RNG propio, derivado del
+        padre para conservar la reproducibilidad con semilla.
         """
+        if not np.isfinite(theta):
+            raise ValueError(f"theta debe ser finito; recibido {theta!r}.")
         c, s      = np.cos(theta / 2), np.sin(theta / 2)
         new_alpha = c * self.alpha - s * self.beta
         new_beta  = s * self.alpha + c * self.beta
         # Ry es unitaria → norma preservada → Arquetipo() normaliza trivialmente
-        return Arquetipo(new_alpha, new_beta)
+        return self.derivar(new_alpha, new_beta)
 
     def __eq__(self, otro: object) -> bool:
         if not isinstance(otro, Arquetipo):
@@ -176,13 +206,16 @@ class ParConDecoherencia:
             K1 = sqrt(gamma/2)     * Z⊗I2
         """
         # BUG FIX 6: protección reforzada
-        if not isinstance(gamma, (int, float)) or np.isnan(gamma):
+        if not isinstance(gamma, (int, float, np.integer, np.floating)) or np.isnan(gamma):
             raise TypeError(f"gamma debe ser un número real; recibido: {gamma!r}")
         if not (0.0 <= gamma <= 1.0):
             raise ValueError(
                 f"gamma debe estar en [0, 1]; recibido {gamma}. "
                 "Fuera de rango produce sqrt de número negativo (NaN silencioso)."
             )
+        # A float de doble precisión: con np.float32 las raíces de los
+        # operadores de Kraus perdían precisión y la traza se desviaba ~1e-8.
+        gamma = float(gamma)
         Z  = np.array([[1, 0], [0, -1]])
         I2 = np.eye(2)
         I4 = np.eye(4)
